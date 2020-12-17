@@ -2295,6 +2295,9 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			CPUFREQ_INCOMPATIBLE, new_policy);
 #endif
 
+	 blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+			CPUFREQ_THERMAL, new_policy);
+
 	/*
 	 * verify the cpu speed can be set within this limit, which might be
 	 * different to the first one

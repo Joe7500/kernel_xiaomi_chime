@@ -430,7 +430,7 @@ static inline void cpufreq_resume(void) {}
 #define CPUFREQ_ADJUST			(0)
 #define CPUFREQ_NOTIFY			(1)
 #define CPUFREQ_INCOMPATIBLE	(6)
-#ifdef CONFIG_MACH_LONGCHEER
+#ifdef CONFIG_MACH_CHIME
 #define CPUFREQ_THERMAL                 (2)
 #endif
 
