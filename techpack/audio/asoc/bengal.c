@@ -69,9 +69,6 @@
 #define TDM_CHANNEL_MAX		8
 #define DEV_NAME_STR_LEN	32
 
-/* time in us to ensure LPM doesn't go in C3/C4 */
-#define MSM_LL_QOS_VALUE	300
-
 #define ADSP_STATE_READY_TIMEOUT_MS 3000
 
 #define WCN_CDC_SLIM_RX_CH_MAX 2
@@ -4030,26 +4027,6 @@ err:
 	return ret;
 }
 
-static int msm_fe_qos_prepare(struct snd_pcm_substream *substream)
-{
-	cpumask_t mask;
-
-	if (pm_qos_request_active(&substream->latency_pm_qos_req))
-		pm_qos_remove_request(&substream->latency_pm_qos_req);
-
-	cpumask_clear(&mask);
-	cpumask_set_cpu(1, &mask); /* affine to core 1 */
-	cpumask_set_cpu(2, &mask); /* affine to core 2 */
-	cpumask_copy(&substream->latency_pm_qos_req.cpus_affine, &mask);
-
-	substream->latency_pm_qos_req.type = PM_QOS_REQ_AFFINE_CORES;
-
-	pm_qos_add_request(&substream->latency_pm_qos_req,
-			  PM_QOS_CPU_DMA_LATENCY,
-			  MSM_LL_QOS_VALUE);
-	return 0;
-}
-
 static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
@@ -4209,10 +4186,6 @@ static struct snd_soc_ops bengal_tdm_be_ops = {
 static struct snd_soc_ops msm_mi2s_be_ops = {
 	.startup = msm_mi2s_snd_startup,
 	.shutdown = msm_mi2s_snd_shutdown,
-};
-
-static struct snd_soc_ops msm_fe_qos_ops = {
-	.prepare = msm_fe_qos_prepare,
 };
 
 static struct snd_soc_ops msm_cdc_dma_be_ops = {
@@ -4697,7 +4670,6 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		/* this dainlink has playback support */
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA5,
-		.ops = &msm_fe_qos_ops,
 	},
 	{/* hw:x,10 */
 		.name = "Listen 1 Audio Service",
@@ -4764,7 +4736,6 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 		 /* this dainlink has playback support */
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA8,
-		.ops = &msm_fe_qos_ops,
 	},
 	/* HDMI Hostless */
 	{/* hw:x,14 */
@@ -5018,7 +4989,6 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 		 /* this dainlink has playback support */
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA16,
-		.ops = &msm_fe_qos_ops,
 	},
 	{/* hw:x,30 */
 		.name = "CDC_DMA Hostless",
