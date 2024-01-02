@@ -6,41 +6,22 @@ config MACH_XIAOMI
 	help
 	  Support for Xiaomi products
 
-config MACH_XIAOMI_SDM660
-	bool "Xiaomi SDM660"
-	depends on ARCH_SDM660
+config MACH_CHIME
+	bool "Chime board"
 	select MACH_XIAOMI
 	help
-	  Support for Xiaomi SDM660 devices
+	  Support for Chime boards
 
-config MACH_LONGCHEER
-	bool "Longcheer board"
-	select MACH_XIAOMI_SDM660
+config MACH_XIAOMI_LIME
+	bool "Xiaomi lime board"
+	select MACH_CHIME
 	help
-	  Support for Longcheer boards
+	  Support for Xiaomi Redmi 9T and equivalents
 
-config MACH_XIAOMI_LAVENDER
-	bool "Xiaomi lavender board"
-	select MACH_LONGCHEER
+config MACH_XIAOMI_CITRUS
+	bool "Xiaomi Citrus board"
+	select MACH_CHIME
 	help
-	  Support for Xiaomi Redmi Note 7
-
-config MACH_XIAOMI_TULIP
-	bool "Xiaomi tulip board"
-	select MACH_LONGCHEER
-	help
-	  Support for Xiaomi Redmi Note 6 Pro
-
-config MACH_XIAOMI_WHYRED
-	bool "Xiaomi whyred board"
-	select MACH_LONGCHEER
-	help
-	  Support for Xiaomi Redmi Note 5 (Pro)
-
-config MACH_XIAOMI_WAYNE
-	bool "Xiaomi wayne board"
-	select MACH_LONGCHEER
-	help
-	  Support for Xiaomi MI A2 and Mi 6X
+	  Support for Xiaomi POCO M3
 
 endmenu
