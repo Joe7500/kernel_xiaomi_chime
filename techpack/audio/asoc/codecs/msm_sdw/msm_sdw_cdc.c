@@ -381,7 +381,7 @@ static int __msm_sdw_reg_read(struct msm_sdw_priv *msm_sdw, unsigned short reg,
 			((u8 *)dest)[i] = temp;
 		}
 		msm_sdw->int_mclk1_enabled = true;
-		queue_delayed_work(system_power_efficient_wq, &msm_sdw->disable_int_mclk1_work, 50);
+		schedule_delayed_work(&msm_sdw->disable_int_mclk1_work, 50);
 		goto unlock_exit;
 	}
 	for (i = 0; i < bytes; i++)  {
@@ -424,7 +424,7 @@ static int __msm_sdw_reg_write(struct msm_sdw_priv *msm_sdw, unsigned short reg,
 			ret = msm_sdw_ahb_write_device(msm_sdw, reg + (4 * i),
 						       &((u8 *)src)[i]);
 		msm_sdw->int_mclk1_enabled = true;
-		queue_delayed_work(system_power_efficient_wq, &msm_sdw->disable_int_mclk1_work, 50);
+		schedule_delayed_work(&msm_sdw->disable_int_mclk1_work, 50);
 		goto unlock_exit;
 	}
 	for (i = 0; i < bytes; i++)
@@ -2006,7 +2006,7 @@ static int msm_sdw_probe(struct platform_device *pdev)
 	adsp_state = apr_get_subsys_state();
 	if (adsp_state != APR_SUBSYS_LOADED ||
 		!q6core_is_adsp_ready()) {
-		dev_dbg(&pdev->dev, "Adsp is not loaded yet %d\n",
+		dev_err(&pdev->dev, "Adsp is not loaded yet %d\n",
 				adsp_state);
 		return -EPROBE_DEFER;
 	}

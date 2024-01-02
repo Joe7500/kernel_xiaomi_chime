@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -23,9 +23,6 @@
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
-#ifdef CONFIG_ELLIPTICLABS
-#include <dsp/apr_elliptic.h>
-#endif
 
 #define WAKELOCK_TIMEOUT	5000
 #define AFE_CLK_TOKEN	1024
@@ -253,9 +250,6 @@ struct afe_ctl {
 	uint32_t v_vali_flag;
 	uint32_t num_spkrs;
 	uint32_t cps_ch_mask;
-#ifdef CONFIG_SND_SOC_MAX98937
-	uint8_t *dsm_payload;
-#endif
 	struct afe_cps_hw_intf_cfg *cps_config;
 	int lsm_afe_ports[MAX_LSM_SESSIONS];
 };
@@ -792,17 +786,6 @@ static int32_t sp_make_afe_callback(uint32_t opcode, uint32_t *payload,
 		}
 		data_dest = (u32 *) &this_afe.ex_vi_resp;
 		break;
-#ifdef CONFIG_SND_SOC_MAX98937
-	case AFE_PARAM_ID_DSM_CFG:
-	case AFE_PARAM_ID_DSM_INFO:
-		expected_size += sizeof(struct afe_dsm_param_array);
-		data_dest = (u32*) this_afe.dsm_payload;
-		break;
-	case AFE_PARAM_ID_CALIB:
-		expected_size = 84;
-		data_dest = (u32*) this_afe.dsm_payload;
-		break;
-#endif
 	case AFE_PARAM_ID_SP_RX_TMAX_XMAX_LOGGING:
 		expected_size += sizeof(
 				struct afe_sp_rx_tmax_xmax_logging_param);
@@ -1128,13 +1111,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
-#ifdef CONFIG_ELLIPTICLABS
-	} else if (data->opcode == ULTRASOUND_OPCODE) {
-		if (NULL != data->payload)
-			elliptic_process_apr_payload(data->payload);
-		else
-			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
-#endif
 	} else if (data->opcode == AFE_EVENT_MBHC_DETECTION_SW_WA) {
 		msm_aud_evt_notifier_call_chain(SWR_WAKE_IRQ_EVENT, NULL);
 	} else if (data->opcode ==
@@ -2301,7 +2277,7 @@ static void afe_send_custom_topology(void)
 	this_afe.set_custom_topology = 0;
 	cal_block = cal_utils_get_only_cal_block(this_afe.cal_data[cal_index]);
 	if (cal_block == NULL || cal_utils_is_cal_stale(cal_block)) {
-		pr_debug("%s cal_block not found!!\n", __func__);
+		pr_err("%s cal_block not found!!\n", __func__);
 		goto unlock;
 	}
 
@@ -2315,7 +2291,7 @@ static void afe_send_custom_topology(void)
 	}
 	ret = afe_send_custom_topology_block(cal_block);
 	if (ret < 0) {
-		pr_debug("%s: No cal sent for cal_index %d! ret %d\n",
+		pr_err("%s: No cal sent for cal_index %d! ret %d\n",
 			__func__, cal_index, ret);
 		goto unlock;
 	}
@@ -2428,141 +2404,6 @@ static int afe_send_cps_config(int src_port)
 	return ret;
 }
 
-#ifdef CONFIG_SND_SOC_MAX98937
-static int afe_dsm_set_params(int port, int module_id, int param_id,
-		uint8_t *payload, int size)
-{
-	struct param_hdr_v3 param_info = {0};
-	int ret = -EINVAL;
-
-	param_info.module_id = module_id;
-	param_info.instance_id = INSTANCE_ID_0;
-	param_info.param_id = param_id;
-	param_info.param_size = size;
-
-	ret = q6afe_pack_and_set_param_in_band(port,
-					       q6audio_get_port_index(port),
-					       param_info, payload);
-	if (ret) {
-		pr_err("%s: Failed to set speaker cfg param, err %d\n",
-		       __func__, ret);
-		goto fail_cmd;
-	}
-	ret = 0;
-fail_cmd:
-	pr_debug("%s: config.pdata.param_id 0x%x status %d\n", __func__,
-		 param_info.param_id, ret);
-	return ret;
-}
-
-static int afe_dsm_get_params(int port, int module_id, int param_id,
-		uint8_t *payload, int size)
-{
-	struct param_hdr_v3 param_hdr = {0};
-	int ret = -EINVAL;
-
-	param_hdr.module_id = module_id;
-	param_hdr.instance_id = INSTANCE_ID_0;
-	param_hdr.param_id = param_id;
-	param_hdr.param_size = size;
-
-	this_afe.dsm_payload = payload - (sizeof(struct param_hdr_v3) +
-			sizeof(uint32_t));
-
-	ret = q6afe_get_params(port, NULL, &param_hdr);
-	if (ret) {
-		pr_err("%s: Failed to get dsm cfg data\n", __func__);
-		goto done;
-	}
-
-	ret = 0;
-done:
-	return ret;
-}
-
-int afe_dsm_rx_get_params(uint8_t *payload, int size)
-{
-	return afe_dsm_get_params(DSM_RX_PORT_ID, AFE_MODULE_DSM_RX,
-			AFE_PARAM_ID_DSM_CFG, payload, size);
-}
-
-int afe_dsm_rx_set_params(uint8_t *payload, int size)
-{
-	return afe_dsm_set_params(DSM_RX_PORT_ID, AFE_MODULE_DSM_RX,
-			AFE_PARAM_ID_DSM_CFG, payload, size);
-}
-
-int afe_dsm_set_calib(uint8_t* payload)
-{
-	return afe_dsm_set_params(DSM_TX_PORT_ID, AFE_MODULE_DSM_TX,
-			AFE_PARAM_ID_CALIB, payload, sizeof(uint32_t) * 3);
-}
-
-int afe_dsm_ramp_dn_cfg(uint8_t *payload, uint32_t delay_in_ms)
-{
-	int ret;
-	uint32_t *params = (uint32_t *)payload;
-
-	*(params)	= 0;
-	*(params + 1)	= 3;
-	*(params + 2)	= 0x03000063;
-	*(params + 3)	= 5;
-	*(params + 4)	= 0x03000064;
-	*(params + 5)	= 500;
-	*(params + 6)	= 0x03000066;
-	*(params + 7)	= 1;
-
-	ret = afe_dsm_rx_set_params(payload, sizeof(uint32_t)*8);
-	if (ret) {
-		pr_err("%s: Failed to set speaker ramp duration param, err %d\n",
-		       __func__, ret);
-		goto fail_cmd;
-	}
-	/* dsp needs atleast 15ms to ramp down pilot tone*/
-	usleep_range(delay_in_ms * 1000, delay_in_ms * 1000 + 10);
-	ret = 0;
-fail_cmd:
-	pr_debug("%s: status %d\n", __func__, ret);
-	return ret;
-}
-
-int afe_dsm_pre_calib(uint8_t* payload)
-{
-	uint32_t *params = (uint32_t *)payload;
-	*(params)	= 0;
-	*(params + 1)	= 1;
-	*(params + 2)	= 0x03000001;
-	*(params + 3)	= 4;
-
-	afe_dsm_rx_set_params(payload, 4 * sizeof(uint32_t));
-	usleep_range(1000 * 1000, 1000 * 1000 + 10);
-	return 0;
-}
-
-int afe_dsm_post_calib(uint8_t* payload)
-{
-	uint32_t *params = (uint32_t *)payload;
-	*(params)	= 0;
-	*(params + 1)	= 1;
-	*(params + 2)	= 0x03000001;
-	*(params + 3)	= 1;
-	return afe_dsm_rx_set_params(payload, 4 * sizeof(uint32_t));
-}
-
-int afe_dsm_get_calib(uint8_t* payload)
-{
-	return afe_dsm_get_params(DSM_TX_PORT_ID, AFE_MODULE_DSM_TX,
-			AFE_PARAM_ID_CALIB, payload, sizeof(uint32_t) * 14);
-}
-
-int afe_dsm_set_status(uint8_t* payload)
-{
-	return afe_dsm_set_params(DSM_RX_PORT_ID, AFE_MODULE_DSM_RX,
-			AFE_PARAM_ID_DSM_INFO, (int8_t*)payload,
-			sizeof(uint32_t) * 8);
-}
-#endif
-
 static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 		union afe_spkr_prot_config *prot_config, uint32_t param_size)
 {
@@ -2643,17 +2484,6 @@ fail_cmd:
 		 param_info.param_id, ret, src_port);
 	return ret;
 }
-
-#ifdef CONFIG_ELLIPTICLABS
-afe_ultrasound_state_t elus_afe = {
-	.ptr_apr = &this_afe.apr,
-	.ptr_status = &this_afe.status,
-	.ptr_state = &this_afe.state,
-	.ptr_wait = this_afe.wait,
-	.timeout_ms = TIMEOUT_MS,
-};
-EXPORT_SYMBOL(elus_afe);
-#endif
 
 static int afe_spkr_prot_reg_event_cfg(u16 port_id, uint32_t module_id)
 {
@@ -3222,7 +3052,7 @@ static int afe_send_hw_delay(u16 port_id, u32 rate)
 		       __func__, port_id, ret);
 
 fail_cmd:
-	pr_debug("%s: port_id 0x%x rate %u delay_usec %d status %d\n",
+	pr_info("%s: port_id 0x%x rate %u delay_usec %d status %d\n",
 	__func__, port_id, rate, delay_entry.delay_usec, ret);
 	return ret;
 }
@@ -3246,7 +3076,7 @@ static struct cal_block_data *afe_find_cal_topo_id_by_port(
 		/* Skip cal_block if it is already marked stale */
 		if (cal_utils_is_cal_stale(cal_block))
 			continue;
-		pr_debug("%s: port id: 0x%x, dev_acdb_id: %d\n", __func__,
+		pr_info("%s: port id: 0x%x, dev_acdb_id: %d\n", __func__,
 			 port_id, this_afe.dev_acdb_id[afe_port_index]);
 		path = ((afe_get_port_type(port_id) ==
 			MSM_AFE_PORT_TYPE_TX)?(TX_DEVICE):(RX_DEVICE));
@@ -3256,14 +3086,14 @@ static struct cal_block_data *afe_find_cal_topo_id_by_port(
 			if (this_afe.dev_acdb_id[afe_port_index] > 0) {
 				if (afe_top->acdb_id ==
 				    this_afe.dev_acdb_id[afe_port_index]) {
-					pr_debug("%s: top_id:%x acdb_id:%d afe_port_id:0x%x\n",
+					pr_info("%s: top_id:%x acdb_id:%d afe_port_id:0x%x\n",
 						 __func__, afe_top->topology,
 						 afe_top->acdb_id,
 						 q6audio_get_port_id(port_id));
 					return cal_block;
 				}
 			} else {
-				pr_debug("%s: top_id:%x acdb_id:%d afe_port:0x%x\n",
+				pr_info("%s: top_id:%x acdb_id:%d afe_port:0x%x\n",
 				 __func__, afe_top->topology, afe_top->acdb_id,
 				 q6audio_get_port_id(port_id));
 				return cal_block;
@@ -3320,7 +3150,7 @@ static int afe_get_cal_topology_id(u16 port_id, u32 *topology_id,
 	*topology_id = (u32)afe_top_info->topology;
 	cal_utils_mark_cal_used(cal_block);
 
-	pr_debug("%s: port_id = 0x%x acdb_id = %d topology_id = 0x%x cal_type_index=%d ret=%d\n",
+	pr_info("%s: port_id = 0x%x acdb_id = %d topology_id = 0x%x cal_type_index=%d ret=%d\n",
 		__func__, port_id, afe_top_info->acdb_id,
 		afe_top_info->topology, cal_type_index, ret);
 unlock:
@@ -3386,7 +3216,7 @@ static int afe_send_port_topology_id(u16 port_id)
 
 	ret = afe_port_topology_deregister(port_id);
 	if (ret < 0) {
-		pr_debug("%s: AFE deregister topology for port 0x%x failed %d\n",
+		pr_err("%s: AFE deregister topology for port 0x%x failed %d\n",
 			__func__, port_id, ret);
 		goto done;
 	}
@@ -3432,7 +3262,7 @@ static int afe_send_port_topology_id(u16 port_id)
 	this_afe.topology[index] = topology_id;
 	rtac_update_afe_topology(port_id);
 done:
-	pr_debug("%s: AFE set topology id 0x%x  enable for port 0x%x ret %d\n",
+	pr_info("%s: AFE set topology id 0x%x  enable for port 0x%x ret %d\n",
 			__func__, topology_id, port_id, ret);
 	return ret;
 
@@ -3669,7 +3499,7 @@ static struct cal_block_data *afe_find_cal(int cal_index, int port_id)
 	struct audio_cal_info_afe *afe_cal_info = NULL;
 	int afe_port_index = q6audio_get_port_index(port_id);
 
-	pr_debug("%s: cal_index %d port_id 0x%x port_index %d\n", __func__,
+	pr_info("%s: cal_index %d port_id 0x%x port_index %d\n", __func__,
 		  cal_index, port_id, afe_port_index);
 	if (afe_port_index < 0) {
 		pr_err("%s: Error getting AFE port index %d\n",
@@ -3681,7 +3511,7 @@ static struct cal_block_data *afe_find_cal(int cal_index, int port_id)
 			   &this_afe.cal_data[cal_index]->cal_blocks) {
 		cal_block = list_entry(ptr, struct cal_block_data, list);
 		afe_cal_info = cal_block->cal_info;
-		pr_debug("%s: acdb_id %d dev_acdb_id %d sample_rate %d afe_sample_rates %d\n",
+		pr_info("%s: acdb_id %d dev_acdb_id %d sample_rate %d afe_sample_rates %d\n",
 			__func__, afe_cal_info->acdb_id,
 			this_afe.dev_acdb_id[afe_port_index],
 			afe_cal_info->sample_rate,
@@ -3690,12 +3520,12 @@ static struct cal_block_data *afe_find_cal(int cal_index, int port_id)
 		     this_afe.dev_acdb_id[afe_port_index]) &&
 		    (afe_cal_info->sample_rate ==
 		     this_afe.afe_sample_rates[afe_port_index])) {
-			pr_debug("%s: cal block is a match, size is %zd\n",
+			pr_info("%s: cal block is a match, size is %zd\n",
 				 __func__, cal_block->cal_data.size);
 			goto exit;
 		}
 	}
-	pr_debug("%s: no matching cal_block found\n", __func__);
+	pr_info("%s: no matching cal_block found\n", __func__);
 	cal_block = NULL;
 
 exit:
@@ -3708,7 +3538,7 @@ static int send_afe_cal_type(int cal_index, int port_id)
 	int ret;
 	int afe_port_index = q6audio_get_port_index(port_id);
 
-	pr_debug("%s: cal_index is %d\n", __func__, cal_index);
+	pr_info("%s: cal_index is %d\n", __func__, cal_index);
 
 	if (this_afe.cal_data[cal_index] == NULL) {
 		pr_warn("%s: cal_index %d not allocated!\n",
@@ -3725,7 +3555,7 @@ static int send_afe_cal_type(int cal_index, int port_id)
 	}
 
 	mutex_lock(&this_afe.cal_data[cal_index]->lock);
-	pr_debug("%s: dev_acdb_id[%d] is %d\n",
+	pr_info("%s: dev_acdb_id[%d] is %d\n",
 			__func__, afe_port_index,
 			this_afe.dev_acdb_id[afe_port_index]);
 	if (((cal_index == AFE_COMMON_RX_CAL) ||
@@ -3738,12 +3568,12 @@ static int send_afe_cal_type(int cal_index, int port_id)
 				this_afe.cal_data[cal_index]);
 
 	if (cal_block == NULL || cal_utils_is_cal_stale(cal_block)) {
-		pr_debug("%s cal_block not found!!\n", __func__);
+		pr_err_ratelimited("%s cal_block not found!!\n", __func__);
 		ret = -EINVAL;
 		goto unlock;
 	}
 
-	pr_debug("%s: Sending cal_index cal %d\n", __func__, cal_index);
+	pr_info("%s: Sending cal_index cal %d\n", __func__, cal_index);
 
 	ret = remap_cal_data(cal_block, cal_index);
 	if (ret) {
@@ -3754,7 +3584,7 @@ static int send_afe_cal_type(int cal_index, int port_id)
 	}
 	ret = afe_send_cal_block(port_id, cal_block);
 	if (ret < 0)
-		pr_debug("%s: No cal sent for cal_index %d, port_id = 0x%x! ret %d\n",
+		pr_err("%s: No cal sent for cal_index %d, port_id = 0x%x! ret %d\n",
 			__func__, cal_index, port_id, ret);
 
 	cal_utils_mark_cal_used(cal_block);
@@ -5255,9 +5085,7 @@ static int q6afe_send_enc_config(u16 port_id,
 	struct asm_aptx_ad_speech_mode_cfg_t speech_codec_init_param;
 	struct param_hdr_v3 param_hdr;
 	int ret;
-#ifndef CONFIG_ARCH_SDM660
 	uint32_t frame_size_ctl_value_v2;
-#endif
 
 	pr_debug("%s:update DSP for enc format = %d\n", __func__, format);
 
@@ -5335,7 +5163,6 @@ static int q6afe_send_enc_config(u16 port_id,
 		goto exit;
 	}
 
-#ifndef CONFIG_ARCH_SDM660
 	if (format == ASM_MEDIA_FMT_AAC_V2) {
 		uint32_t frame_size_ctl_value = enc_blk_param.enc_blk_config.
 				aac_config.frame_ctl.ctl_value;
@@ -5439,7 +5266,6 @@ static int q6afe_send_enc_config(u16 port_id,
 			goto exit;
 		}
 	}
-#endif
 
 	pr_debug("%s:sending AFE_ENCODER_PARAM_ID_PACKETIZER to DSP\n",
 		 __func__);
@@ -5456,7 +5282,6 @@ static int q6afe_send_enc_config(u16 port_id,
 		goto exit;
 	}
 
-#ifndef CONFIG_ARCH_SDM660
 	if (format != ASM_MEDIA_FMT_APTX_AD_SPEECH) {
 		pr_debug("%s:sending AFE_ENCODER_PARAM_ID_ENABLE_SCRAMBLING mode= %d to DSP payload\n",
 			  __func__, scrambler_mode);
@@ -5473,7 +5298,6 @@ static int q6afe_send_enc_config(u16 port_id,
 			goto exit;
 		}
 	}
-#endif
 
 	if (format == ASM_MEDIA_FMT_APTX) {
 		pr_debug("%s:sending CAPI_V2_PARAM_ID_APTX_ENC_SWITCH_TO_MONO mode= %d to DSP payload\n",
@@ -5692,7 +5516,7 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		port_id = VIRTUAL_ID_TO_PORTID(port_id);
 	}
 
-	pr_debug("%s: port id: 0x%x\n", __func__, port_id);
+	pr_info("%s: port id: 0x%x\n", __func__, port_id);
 
 	index = q6audio_get_port_index(port_id);
 	if (index < 0 || index >= AFE_MAX_PORTS) {
@@ -8201,7 +8025,7 @@ static int afe_sidetone_iir(u16 tx_port_id)
 	mutex_lock(&this_afe.cal_data[cal_index]->lock);
 	cal_block = cal_utils_get_only_cal_block(this_afe.cal_data[cal_index]);
 	if (cal_block == NULL || cal_utils_is_cal_stale(cal_block)) {
-		pr_debug("%s: cal_block not found\n ", __func__);
+		pr_err("%s: cal_block not found\n ", __func__);
 		mutex_unlock(&this_afe.cal_data[cal_index]->lock);
 		ret = -EINVAL;
 		goto done;
@@ -8336,7 +8160,7 @@ static int afe_sidetone(u16 tx_port_id, u16 rx_port_id, bool enable)
 	mutex_lock(&this_afe.cal_data[cal_index]->lock);
 	cal_block = cal_utils_get_only_cal_block(this_afe.cal_data[cal_index]);
 	if (cal_block == NULL || cal_utils_is_cal_stale(cal_block)) {
-		pr_debug("%s: cal_block not found\n", __func__);
+		pr_err("%s: cal_block not found\n", __func__);
 		mutex_unlock(&this_afe.cal_data[cal_index]->lock);
 		ret = -EINVAL;
 		goto done;
@@ -8829,7 +8653,7 @@ int afe_close(int port_id)
 		afe_close_done[port_id & 0x1] = true;
 		return -EINVAL;
 	}
-	pr_debug("%s: port_id = 0x%x\n", __func__, port_id);
+	pr_info("%s: port_id = 0x%x\n", __func__, port_id);
 	if ((port_id == RT_PROXY_DAI_001_RX) ||
 			(port_id == RT_PROXY_DAI_002_TX)) {
 		pr_debug("%s: before decrementing pcm_afe_instance %d\n",
@@ -9432,7 +9256,7 @@ int afe_set_lpass_clock_v2(u16 port_id, struct afe_clk_set *cfg)
 					clk_src_name[CLK_SRC_INTEGRAL]);
 		}
 		if (ret < 0)
-			pr_debug("%s: afe_set_source_clk fail %d\n",
+			pr_err("%s: afe_set_source_clk fail %d\n",
 				__func__, ret);
 	}
 	idx = afe_get_port_idx(port_id);
@@ -9711,7 +9535,6 @@ static int afe_get_sp_th_vi_v_vali_data(
 
 	mutex_lock(&this_afe.afe_cmd_lock);
 	memset(&param_hdr, 0, sizeof(param_hdr));
-	memset(th_vi_v_vali, 0, sizeof(*th_vi_v_vali));
 
 	param_hdr.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_TH_VI;
 	param_hdr.instance_id = INSTANCE_ID_0;

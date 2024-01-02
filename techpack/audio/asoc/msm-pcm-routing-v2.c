@@ -32,10 +32,6 @@
 #include <dsp/q6core.h>
 #include <dsp/q6common.h>
 #include <dsp/audio_cal_utils.h>
-#ifdef CONFIG_ELLIPTICLABS
-#include <dsp/apr_elliptic.h>
-#include <elliptic/elliptic_mixer_controls.h>
-#endif
 
 #include "msm-pcm-routing-v2.h"
 #include "msm-pcm-routing-devdep.h"
@@ -1244,9 +1240,6 @@ static int msm_routing_find_topology_on_index(int session_type, int app_type,
 	int topology = -EINVAL;
 	struct cal_block_data *cal_block = NULL;
 
-	if (cal_data[idx] == NULL)
-		return topology;
-
 	mutex_lock(&cal_data[idx]->lock);
 	cal_block = msm_routing_find_topology(session_type, app_type,
 					      acdb_dev_id, idx, exact);
@@ -1272,6 +1265,9 @@ static int msm_routing_get_adm_topology(int fedai_id, int session_type,
 	pr_debug("%s: fedai_id %d, session_type %d, be_id %d\n",
 	       __func__, fedai_id, session_type, be_id);
 
+	if (cal_data == NULL)
+		goto done;
+
 	app_type = fe_dai_app_type_cfg[fedai_id][session_type][be_id].app_type;
 	acdb_dev_id =
 		fe_dai_app_type_cfg[fedai_id][session_type][be_id].acdb_dev_id;
@@ -1292,7 +1288,7 @@ static int msm_routing_get_adm_topology(int fedai_id, int session_type,
 		if (topology < 0)
 			topology = NULL_COPP_TOPOLOGY;
 	}
-
+done:
 	pr_debug("%s: Using topology %d\n", __func__, topology);
 	return topology;
 }
@@ -3638,25 +3634,6 @@ static SOC_ENUM_DOUBLE_DECL(mm30_ch1_enum,
 static SOC_ENUM_DOUBLE_DECL(mm30_ch2_enum,
 	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA30, 1, be_name);
 
-#ifdef CONFIG_MACH_LONGCHEER
-static SOC_ENUM_DOUBLE_DECL(mm2_ch1_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 0, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch2_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 1, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch3_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 2, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch4_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 3, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch5_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 4, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch6_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 5, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch7_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 6, be_name);
-static SOC_ENUM_DOUBLE_DECL(mm2_ch8_enum,
-	SND_SOC_NOPM, MSM_FRONTEND_DAI_MULTIMEDIA2, 7, be_name);
-#endif
-
 static int msm_pcm_get_ctl_enum_info(struct snd_ctl_elem_info *uinfo,
 		unsigned int channels,
 		unsigned int items, const char *const names[])
@@ -4273,18 +4250,6 @@ static const struct snd_kcontrol_new channel_mixer_controls[] = {
 	.private_value = (unsigned long)&(struct soc_multi_mixer_control)
 		{.shift = MSM_FRONTEND_DAI_MULTIMEDIA2, .rshift = 2,}
 	},
-#ifdef CONFIG_MACH_LONGCHEER
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Output Channel4",
-	.info = msm_pcm_channel_weight_info,
-	.get = msm_pcm_channel_weight_get,
-	.put = msm_pcm_channel_weight_put,
-	.private_value = (unsigned long)&(struct soc_multi_mixer_control)
-		{.shift = MSM_FRONTEND_DAI_MULTIMEDIA2, .rshift = 3,}
-	},
-#endif
 	{
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -5277,80 +5242,6 @@ static const struct snd_kcontrol_new channel_mixer_controls[] = {
 	.private_value = (unsigned long)&(struct soc_multi_mixer_control)
 		{ .shift = MSM_FRONTEND_DAI_MULTIMEDIA30,}
 	},
-#ifdef CONFIG_MACH_LONGCHEER
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel1",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch1_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel2",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch2_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel3",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch3_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel4",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch4_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel5",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch5_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel6",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch6_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel7",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch7_enum)
-	},
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.name = "MultiMedia2 Channel8",
-	.info = msm_pcm_channel_input_be_info,
-	.get = msm_pcm_channel_input_be_get,
-	.put = msm_pcm_channel_input_be_put,
-	.private_value = (unsigned long)&(mm2_ch8_enum)
-	},
-#endif
 };
 
 static int msm_ec_ref_ch_get(struct snd_kcontrol *kcontrol,
@@ -7774,11 +7665,6 @@ static const struct snd_kcontrol_new primary_mi2s_rx_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_PRI_MI2S_RX,
 	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
-#if defined(CONFIG_SND_SOC_TAS2557) || defined(CONFIG_SND_I2S_PRIMARY)
-	SOC_SINGLE_EXT("INT3_MI2S_TX", MSM_BACKEND_DAI_PRI_MI2S_RX,
-	MSM_BACKEND_DAI_INT3_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
-	msm_routing_put_port_mixer),
-#endif
 	SOC_DOUBLE_EXT("SEC_AUX_PCM_UL_TX", SND_SOC_NOPM,
 	MSM_BACKEND_DAI_PRI_MI2S_RX,
 	MSM_BACKEND_DAI_SEC_AUXPCM_TX, 1, 0, msm_routing_get_port_mixer,
@@ -23155,11 +23041,10 @@ static int msm_routing_put_stereo_to_custom_stereo_control(
 					goto skip_send_custom_stereo;
 				topo_id = adm_get_topology_for_port_copp_idx(
 					msm_bedais[be_index].port_id, idx);
-				if (topo_id < 0) {
+				if (topo_id < 0)
 					pr_debug("%s:Err:custom stereo topo %d",
 						 __func__, topo_id);
 					pr_debug("idx %d\n", idx);
-				}
 				if (topo_id == DS2_ADM_COPP_TOPOLOGY_ID)
 					rc = msm_ds2_dap_set_custom_stereo_onoff
 						(msm_bedais[be_index].port_id,
@@ -24317,38 +24202,38 @@ static const int int4_mi2s_rx_vi_fb_tx_stereo_ch_value[] = {
 };
 
 static const struct soc_enum slim0_rx_vi_fb_lch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_SLIMBUS_0_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SLIMBUS_0_RX, 0, 0,
 	ARRAY_SIZE(slim0_rx_vi_fb_tx_lch_mux_text),
 	slim0_rx_vi_fb_tx_lch_mux_text, slim0_rx_vi_fb_tx_lch_value);
 
 static const struct soc_enum slim0_rx_vi_fb_rch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_SLIMBUS_0_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SLIMBUS_0_RX, 0, 0,
 	ARRAY_SIZE(slim0_rx_vi_fb_tx_rch_mux_text),
 	slim0_rx_vi_fb_tx_rch_mux_text, slim0_rx_vi_fb_tx_rch_value);
 
 static const struct soc_enum wsa_rx_0_vi_fb_lch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0, 0, 0,
 	ARRAY_SIZE(wsa_rx_0_vi_fb_tx_lch_mux_text),
 	wsa_rx_0_vi_fb_tx_lch_mux_text, wsa_rx_0_vi_fb_tx_lch_value);
 
 static const struct soc_enum wsa_rx_0_vi_fb_rch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0, 0, 0,
 	ARRAY_SIZE(wsa_rx_0_vi_fb_tx_rch_mux_text),
 	wsa_rx_0_vi_fb_tx_rch_mux_text, wsa_rx_0_vi_fb_tx_rch_value);
 
 static const struct soc_enum mi2s_rx_vi_fb_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
 	ARRAY_SIZE(mi2s_rx_vi_fb_tx_mux_text),
 	mi2s_rx_vi_fb_tx_mux_text, mi2s_rx_vi_fb_tx_value);
 
 static const struct soc_enum int4_mi2s_rx_vi_fb_mono_ch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
 	ARRAY_SIZE(int4_mi2s_rx_vi_fb_tx_mono_mux_text),
 	int4_mi2s_rx_vi_fb_tx_mono_mux_text,
 	int4_mi2s_rx_vi_fb_tx_mono_ch_value);
 
 static const struct soc_enum int4_mi2s_rx_vi_fb_stereo_ch_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
 	ARRAY_SIZE(int4_mi2s_rx_vi_fb_tx_stereo_mux_text),
 	int4_mi2s_rx_vi_fb_tx_stereo_mux_text,
 	int4_mi2s_rx_vi_fb_tx_stereo_ch_value);
@@ -26883,6 +26768,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MultiMedia19 Mixer", "TX_CDC_DMA_TX_3", "TX_CDC_DMA_TX_3"},
 	{"MultiMedia19 Mixer", "TX_CDC_DMA_TX_4", "TX_CDC_DMA_TX_4"},
 	{"MultiMedia19 Mixer", "TX_CDC_DMA_TX_5", "TX_CDC_DMA_TX_5"},
+
 	{"MultiMedia19 Mixer", "VA_CDC_DMA_TX_0", "VA_CDC_DMA_TX_0"},
 	{"MultiMedia19 Mixer", "VA_CDC_DMA_TX_1", "VA_CDC_DMA_TX_1"},
 #endif
@@ -30484,18 +30370,11 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"SLIMBUS_6_RX Port Mixer", "TERT_MI2S_TX", "TERT_MI2S_TX"},
 	{"SLIMBUS_6_RX Port Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
 
-#ifdef CONFIG_ELLIPTICLABS
-	{"INT0_MI2S_RX", NULL, "INT0_MI2S_DL_HL"},
-#endif
 	{"INT0_MI2S_RX_DL_HL", "Switch", "INT4_MI2S_DL_HL"},
 	{"INT0_MI2S_RX", NULL, "INT0_MI2S_RX_DL_HL"},
 	{"INT4_MI2S_RX_DL_HL", "Switch", "INT4_MI2S_DL_HL"},
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_DL_HL"},
-#ifdef CONFIG_MACH_LONGCHEER
-	{"PRI_MI2S_RX_DL_HL", "Switch", "INT4_MI2S_DL_HL"},
-#else
 	{"PRI_MI2S_RX_DL_HL", "Switch", "PRI_MI2S_DL_HL"},
-#endif
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
 	{"SEC_MI2S_RX_DL_HL", "Switch", "SEC_MI2S_DL_HL"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
@@ -30571,9 +30450,6 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"PRI_MI2S_RX Port Mixer", "SEC_MI2S_TX", "SEC_MI2S_TX"},
 	{"PRI_MI2S_RX Port Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
 	{"PRI_MI2S_RX Port Mixer", "TERT_MI2S_TX", "TERT_MI2S_TX"},
-#if defined(CONFIG_SND_SOC_TAS2557) || defined(CONFIG_SND_I2S_PRIMARY)
-	{"PRI_MI2S_RX Port Mixer", "INT3_MI2S_TX", "INT3_MI2S_TX"},
-#endif
 	{"PRI_MI2S_RX Port Mixer", "QUIN_MI2S_TX", "QUIN_MI2S_TX"},
 	{"PRI_MI2S_RX Port Mixer", "SENARY_MI2S_TX", "SENARY_MI2S_TX"},
 	{"PRI_MI2S_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
@@ -31725,10 +31601,6 @@ static int msm_routing_probe(struct snd_soc_component *component)
 				      ARRAY_SIZE(pll_clk_drift_controls));
 	snd_soc_add_component_controls(component, mclk_src_controls,
 				      ARRAY_SIZE(mclk_src_controls));
-
-#ifdef CONFIG_ELLIPTICLABS
-	elliptic_add_component_controls(component);
-#endif
 
 	return 0;
 }

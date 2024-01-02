@@ -52,12 +52,7 @@
 #define SPK_PMD 2
 #define SPK_PMU 3
 
-#ifdef CONFIG_MACH_LONGCHEER
-/*modify for D2S main-mic 2.3-3.6v sub-mic 1.5-3.6v tsx 11/6 */
-#define MICBIAS_DEFAULT_VAL 2600000
-#else
 #define MICBIAS_DEFAULT_VAL 1800000
-#endif
 #define MICBIAS_MIN_VAL 1600000
 #define MICBIAS_STEP_SIZE 50000
 
@@ -723,7 +718,7 @@ static void msm_anlg_cdc_mbhc_calc_impedance(struct wcd_mbhc *mbhc,
 					wcd_mbhc_meas_imped(component,
 							&impedance_l,
 							&impedance_r);
-					if (impedance_r == impedance_l) {
+					if (impedance_r == impedance_l)
 						dev_dbg(component->dev,
 							"%s: Mono Headset\n",
 							__func__);
@@ -731,7 +726,6 @@ static void msm_anlg_cdc_mbhc_calc_impedance(struct wcd_mbhc *mbhc,
 							WCD_MBHC_DET_NONE;
 						mbhc->hph_type =
 							WCD_MBHC_HPH_MONO;
-					}
 				} else {
 					dev_dbg(component->dev,
 						"%s: STEREO headset is found\n",
@@ -4664,7 +4658,7 @@ static int msm_anlg_cdc_probe(struct platform_device *pdev)
 	adsp_state = apr_get_subsys_state();
 	if (adsp_state != APR_SUBSYS_LOADED ||
 		!q6core_is_adsp_ready()) {
-		dev_dbg(&pdev->dev, "Adsp is not loaded yet %d\n",
+		dev_err(&pdev->dev, "Adsp is not loaded yet %d\n",
 			adsp_state);
 		return -EPROBE_DEFER;
 	}
