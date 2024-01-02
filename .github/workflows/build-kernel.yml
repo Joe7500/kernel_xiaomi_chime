@@ -1,0 +1,39 @@
+name: Build Kernel on GitHub Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Making the Environment leaner
+      run: sudo snap list && sudo snap remove firefox && sudo apt remove -y snapd
+
+    - name: Update Environment
+      run: sudo apt update -y
+
+    - name: Install Dependencies
+      run: |
+        sudo apt install -y git-core gnupg build-essential zip \
+        curl libarchive-tools \
+        unzip python2 python3 python3-pip python3-dev \
+        python-is-python3 ccache libncurses5 lzop \
+        patchelf git-lfs ripgrep clang-11 &> /dev/null
+
+    - name: Download Neutron Toolchain
+      run: bash hani-ci.sh --tools
+
+    - name: Build hanikrnl.
+      run: bash hani-ci.sh --build
+
+    - name: Upload kernel
+      uses: actions/upload-artifact@v3
+      with:
+        name: hanikrnl-wip
+        path: 4.19-hanikrnl.wip.*-chime*.zip
