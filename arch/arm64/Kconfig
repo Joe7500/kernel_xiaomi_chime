@@ -1616,6 +1616,7 @@ config KRYO_PMU_WORKAROUND
 	  overflow interrupts from multiple monitors.
 
 	  Enable this flag for effect SoCs.
+
 config BOOT_INFO
 	bool "Boot information from bootloader"
 	default y
