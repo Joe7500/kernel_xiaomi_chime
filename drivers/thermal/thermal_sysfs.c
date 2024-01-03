@@ -824,9 +824,7 @@ void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
 	spin_lock(&stats->lock);
 
 	if ((stats->state == new_state 
-#ifdef CONFIG_MACH_CHIME
 		|| new_state >= stats->max_states)
-#endif		
 	) {
 		goto unlock;
 	}
