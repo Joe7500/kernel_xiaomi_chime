@@ -2285,7 +2285,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_ADJUST, new_policy);
 
-#ifdef CONFIG_MACH_LONGCHEER
+#ifdef CONFIG_MACH_CHIME
 	/* the adjusted frequency should not exceed thermal limit*/
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_THERMAL, new_policy);
@@ -2294,9 +2294,6 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_INCOMPATIBLE, new_policy);
 #endif
-
-	 blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
-			CPUFREQ_THERMAL, new_policy);
 
 	/*
 	 * verify the cpu speed can be set within this limit, which might be
