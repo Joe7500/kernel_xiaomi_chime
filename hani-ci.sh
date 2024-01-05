@@ -33,10 +33,9 @@ if [[ $1 = "-r" || $1 = "--regen" ]]; then
 fi
 
 if [[ $1 = "-b" || $1 = "--build" ]]; then
-	export ARCH=arm64
 	PATH=$PWD/toolchain/bin:$PATH
 	mkdir -p out
-	make O=out CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 $DEFCONFIG
+	make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 $DEFCONFIG
 	echo -e ""
 	echo -e ""
 	echo -e "*****************************"
@@ -46,7 +45,7 @@ if [[ $1 = "-b" || $1 = "--build" ]]; then
 	echo -e "*****************************"
 	echo -e ""
 	echo -e ""
-	make O=out CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc) || exit 1
+	make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1 -j$(nproc) || exit 1
 
 	kernel="out/arch/arm64/boot/Image"
 	dtbo="out/arch/arm64/boot/dtbo.img"
