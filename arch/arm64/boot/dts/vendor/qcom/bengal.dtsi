@@ -51,8 +51,8 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0>;
-			capacity-dmips-mhz = <637>;
-			efficiency = <637>;
+			capacity-dmips-mhz = <636>;
+			efficiency = <636>;
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
@@ -77,8 +77,8 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x1>;
-			capacity-dmips-mhz = <637>;
-			efficiency = <637>;
+			capacity-dmips-mhz = <636>;
+			efficiency = <636>;
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
@@ -98,8 +98,8 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x2>;
-			capacity-dmips-mhz = <637>;
-			efficiency = <637>;
+			capacity-dmips-mhz = <636>;
+			efficiency = <636>;
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
@@ -119,8 +119,8 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x3>;
-			capacity-dmips-mhz = <637>;
-			efficiency = <637>;
+			capacity-dmips-mhz = <636>;
+			efficiency = <636>;
 			dynamic-power-coefficient = <100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
