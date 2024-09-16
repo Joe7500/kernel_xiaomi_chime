@@ -155,3 +155,10 @@ gcc32/
 #Ignoring Android.bp link file
 #
 Android.bp
+
+
+4.19-hanikrnl*.zip
+AnyKernel3/
+Makefile.bak
+toolchain/
+
