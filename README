@@ -1,3 +1,6 @@
+CAUTION: Compiler optimization turned up to 11. Use a stable toolchain. Recommend Google AOSP clang 17.0.4.
+https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+/ba7da711271d310dda6b5134d8f4448f6a276a27/clang-r498229b/
+
 Linux kernel
 ============
 
